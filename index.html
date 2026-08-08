@@ -1,0 +1,5654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+
+<title>World Rebellion</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+}
+
+body{
+    background:#000;
+    overflow:hidden;
+    font-family:monospace;
+}
+
+canvas{
+    display:block;
+    margin:auto;
+    background:#000;
+    image-rendering:pixelated;
+}
+
+#ui{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+}
+
+#hud{
+    position:absolute;
+    left:8px;
+    top:8px;
+    color:#fff;
+    font-size:16px;
+    line-height:20px;
+}
+
+#menu{
+    position:fixed;
+    inset:0;
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:18px;
+    z-index:1000;
+}
+
+#menu h1{
+    color:white;
+    font-size:34px;
+    margin-bottom:30px;
+}
+
+#menu button{
+    width:220px;
+    height:52px;
+    font-size:22px;
+    border:2px solid #888;
+    background:#222;
+    color:white;
+}
+
+#menu button:disabled{
+    background:#111;
+    color:#666;
+    border-color:#444;
+}
+
+.chapter.active{
+    border-color:#0ff;
+    color:#0ff;
+}
+#chapterSelect{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+#characterSelect{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.character{
+    width:220px;
+    height:42px;
+    font-size:18px;
+}
+
+.character.active{
+    border-color:#0ff;
+    color:#0ff;
+}
+
+.character:disabled{
+    background:#111;
+    color:#555;
+    border-color:#333;
+}
+#controls{
+    position:fixed;
+    left:12px;
+    bottom:12px;
+    width:180px;
+    height:180px;
+    pointer-events:auto;
+}
+
+#controls button,
+#skill{
+    position:absolute;
+    width:56px;
+    height:56px;
+    font-size:22px;
+    border:2px solid #888;
+    background:#222;
+    color:#fff;
+    cursor:pointer;
+    opacity:0.45;
+}
+#skillCd{
+    position:fixed;
+    right:18px;
+    bottom:125px;
+    width:90px;
+    text-align:center;
+    color:#0ff;
+    font-size:14px;
+    font-weight:bold;
+    text-shadow:0 0 4px #000;
+    pointer-events:none;
+}
+#up{
+    left:62px;
+    top:0;
+}
+
+#left{
+    left:0;
+    top:62px;
+}
+
+#right{
+    left:124px;
+    top:62px;
+}
+
+#down{
+    left:62px;
+    top:124px;
+}
+
+#skill{
+    position:fixed;
+    right:18px;
+    bottom:28px;
+    width:90px;
+    height:90px;
+    font-size:18px;
+    pointer-events:auto;
+}
+
+button:active{
+    transform:translateY(2px);
+}
+
+</style>
+
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<div id="menu">
+
+    <h1>WORLD REBELLION</h1>
+
+    <div id="chapterSelect">
+    <button id="chapter1Btn" class="chapter active">CHAPTER 1</button>
+    <button id="chapter2Btn" class="chapter">CHAPTER 2</button>
+<button id="chapter3Btn" class="chapter">CHAPTER 3</button>
+    </div>
+<div id="characterSelect">
+
+    <button id="renkaBtn" class="character active">
+        RENKA
+    </button>
+
+    <button id="merivelleBtn" class="character" disabled>
+        MERIVELLE
+    </button>
+
+    <button id="yuchiaBtn" class="character" disabled>
+        YUCHIA
+    </button>
+
+    <button id="yumeiBtn" class="character" disabled>
+        YUMEI
+    </button>
+
+</div>
+    <button id="startBtn">START</button>
+
+    <button id="extraBtn" disabled>EXTRA</button>
+
+</div>
+
+<div id="ui">
+
+<div id="hud"></div>
+
+</div>
+
+</div>
+
+<div id="controls">
+
+<button id="up">▲</button>
+<button id="left">◀</button>
+<button id="right">▶</button>
+<button id="down">▼</button>
+
+</div>
+
+<button id="skill">SKILL</button>
+
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let gameOver = false;
+let inMenu = true;
+
+let extraUnlocked = localStorage.getItem("wr_extra") === "1";
+let extra2Unlocked = localStorage.getItem("wr_extra2") === "1";
+let extraMode = false;
+
+const extraBtn = document.getElementById("extraBtn");
+extraBtn.disabled = !extraUnlocked;
+
+// ===== Images =====
+
+const imgRenka = new Image();
+imgRenka.src = "https://i.ibb.co/gbxLFH33/image.png";
+
+const imgJinrou = new Image();
+imgJinrou.src = "https://i.ibb.co/Tq7DG4Pz/image.png";
+
+const imgMisora = new Image();
+imgMisora.src = "https://i.ibb.co/kZ0tnY9/image.png";
+
+const imgElis = new Image();
+imgElis.src = "https://i.ibb.co/ksW1pDq7/image.png";
+
+const imgSeraphel = new Image();
+imgSeraphel.src = "https://i.ibb.co/My5X0GqP/image.png";
+
+const imgSerial = new Image();
+imgSerial.src = "https://i.ibb.co/GQTB5cL3/image.png";
+
+const imgRaizen = new Image();
+imgRaizen.src = "https://i.ibb.co/RGpjLfTZ/image.png";
+
+const imgYuchia = new Image();
+imgYuchia.src = "https://i.ibb.co/WvbtsXDp/image.png";
+
+const imgRinnie = new Image();
+imgRinnie.src = "https://i.ibb.co/h11HmtVt/image.png";
+
+const imgLysette = new Image();
+imgLysette.src = "https://i.ibb.co/vxVtwxNX/image.png";
+
+const imgMerivelle = new Image();
+imgMerivelle.src = "https://i.ibb.co/BmVXxLH/image.png";
+
+const imgMilipsar = new Image();
+imgMilipsar.src = "https://i.ibb.co/rRd95XZD/image.png";
+
+const imgYumei = new Image();
+imgYumei.src = "https://i.ibb.co/wNng28r3/image.png";
+
+const imgVelsira = new Image();
+imgVelsira.src = "https://i.ibb.co/Zp5m7nM0/image.png";
+
+const imgLunemi = new Image();
+imgLunemi.src = "https://i.ibb.co/G3rcfq6Z/image.png";
+
+const player={
+    x:200,
+    y:520,
+    w:8,
+    h:8,
+    speed:3,
+    damage:1,
+    hp:5
+};
+
+function applyCharacterStats(){
+
+    if(playableName==="Merivelle"){
+
+        player.speed=4;
+        player.damage=2;
+
+    }else if(playableName==="Yuchia"){
+
+        player.speed=5;
+        player.damage=2;
+
+    }else if(playableName==="Yumei"){
+
+        player.speed=3;
+        player.damage=2;
+
+    }else{
+
+        player.speed=3;
+        player.damage=1;
+
+    }
+
+}
+
+let playableName="Renka";
+let playableImg=imgRenka;
+let playableUnlock =
+    localStorage.getItem("wr_playableUnlock") === "1";
+
+let playable2Unlock =
+    localStorage.getItem("wr_playable2Unlock") === "1";
+
+let moveUp=false;
+let moveDown=false;
+let moveLeft=false;
+let moveRight=false;
+
+function bindButton(id,key){
+
+    const btn=document.getElementById(id);
+
+    function set(v){
+        switch(key){
+            case "up": moveUp=v; break;
+            case "down": moveDown=v; break;
+            case "left": moveLeft=v; break;
+            case "right": moveRight=v; break;
+        }
+    }
+
+    btn.onpointerdown=()=>set(true);
+
+    btn.onpointerup=
+    btn.onpointerleave=
+    btn.onpointercancel=()=>set(false);
+
+}
+
+bindButton("up","up");
+bindButton("down","down");
+bindButton("left","left");
+bindButton("right","right");
+
+document.getElementById("startBtn").onclick=()=>{
+
+if(chapter===1){
+
+    stage=1;
+
+}else if(chapter===2){
+
+    stage=8;
+
+}else{
+
+    stage=15;
+
+}
+
+    boss=null;
+    bossSpawned=false;
+
+    stageTimer=0;
+    stage2Timer=0;
+    stage3Timer=0;
+    stage4Timer=0;
+    stage5Timer=0;
+    stage6Timer=0;
+    stageExtraTimer=0;
+
+    inMenu=false;
+
+    document.getElementById("menu").style.display="none";
+
+};
+
+document.getElementById("extraBtn").onclick = () => {
+
+    if(chapter===1){
+        stage = 7;
+    }else{
+        stage = 14;
+    }
+
+    player.hp = 5;
+    lives = 3;
+
+    boss = null;
+    bossSpawned = false;
+
+    enemyBullets.length = 0;
+    enemies.length = 0;
+
+    stageExtraTimer = 0;
+    stageExtrach2Timer = 0;
+
+    extraMode = true;
+    inMenu = false;
+
+    document.getElementById("menu").style.display = "none";
+};
+const renkaBtn=document.getElementById("renkaBtn");
+const merivelleBtn=document.getElementById("merivelleBtn");
+const yuchiaBtn=document.getElementById("yuchiaBtn");
+const yumeiBtn=document.getElementById("yumeiBtn");
+
+function selectCharacter(name,img,btn){
+
+    playableName=name;
+    playableImg=img;
+
+    applyCharacterStats();
+
+    document
+        .querySelectorAll(".character")
+        .forEach(b=>b.classList.remove("active"));
+
+    btn.classList.add("active");
+}
+
+renkaBtn.onclick=()=>{
+    selectCharacter(
+        "Renka",
+        imgRenka,
+        renkaBtn
+    );
+};
+
+merivelleBtn.onclick=()=>{
+    if(chapter!==3) return;
+
+    selectCharacter(
+        "Merivelle",
+        imgMerivelle,
+        merivelleBtn
+    );
+};
+
+yuchiaBtn.onclick=()=>{
+    if(chapter!==3 || !playableUnlock) return;
+
+    selectCharacter(
+        "Yuchia",
+        imgYuchia,
+        yuchiaBtn
+    );
+};
+
+yumeiBtn.onclick=()=>{
+    if(chapter!==3 || !playable2Unlock) return;
+
+    selectCharacter(
+        "Yumei",
+        imgYumei,
+        yumeiBtn
+    );
+};
+let skillTimer=0;
+let skillCooldown=0;
+
+const bullets=[];
+const enemies=[];
+const enemyBullets=[];
+const effects=[];
+const items=[];
+
+let stageTimer=0;
+let boss=null;
+let bossSpawned=false;
+
+let bossNameTimer=0;
+let bossName="Jinrou";
+
+let bossDefeated = false;
+let stage = 1;
+let stage2Timer = 0;
+let stage3Timer = 0;
+let stage4Timer = 0;
+let stage5Timer = 0;
+let stage6Timer = 0;
+let stageExtraTimer = 0;
+let stage1ch2Timer = 0;
+let stage2ch2Timer = 0;
+let stage3ch2Timer=0;
+let stage4ch2Timer=0;
+let stage5ch2Timer=0;
+let stage6ch2Timer=0;
+let stageExtrach2Timer=0;
+let stage1ch3Timer=0;
+let stage2ch3Timer = 0;
+let stage3ch3Timer=0;
+
+let score=0;
+let frame=0;
+let chapter=1;
+function updateCharacterSelect(){
+
+    // Chapter 1 và 2:
+    // CHỈ Renka
+    if(chapter===1 || chapter===2){
+
+        merivelleBtn.disabled=true;
+        yuchiaBtn.disabled=true;
+        yumeiBtn.disabled=true;
+
+        playableName="Renka";
+        playableImg=imgRenka;
+
+        document
+            .querySelectorAll(".character")
+            .forEach(b=>b.classList.remove("active"));
+
+        renkaBtn.classList.add("active");
+
+        return;
+    }
+
+    // Chapter 3
+
+    merivelleBtn.disabled=false;
+
+    if(playableUnlock){
+
+        yuchiaBtn.disabled=false;
+        yuchiaBtn.textContent="YUCHIA";
+
+    }else{
+
+        yuchiaBtn.disabled=true;
+        yuchiaBtn.textContent="YUCHIA";
+
+    }
+
+    if(playable2Unlock){
+
+        yumeiBtn.disabled=false;
+        yumeiBtn.textContent="YUMEI";
+
+    }else{
+
+        yumeiBtn.disabled=true;
+        yumeiBtn.textContent="YUMEI";
+
+    }
+
+}
+const chapterBtns=document.querySelectorAll(".chapter");
+
+document.getElementById("chapter1Btn").onclick=()=>{
+
+    chapter=1;
+
+    chapterBtns.forEach(b=>b.classList.remove("active"));
+    document.getElementById("chapter1Btn").classList.add("active");
+
+    extraBtn.disabled=!extraUnlocked;
+
+    updateCharacterSelect();
+
+};
+
+document.getElementById("chapter2Btn").onclick=()=>{
+
+    chapter=2;
+
+    chapterBtns.forEach(b=>b.classList.remove("active"));
+    document.getElementById("chapter2Btn").classList.add("active");
+
+    extraBtn.disabled=!extra2Unlocked;
+
+    updateCharacterSelect();
+
+};
+document.getElementById("chapter3Btn").onclick=()=>{
+
+    chapter=3;
+
+    chapterBtns.forEach(b=>b.classList.remove("active"));
+    document.getElementById("chapter3Btn").classList.add("active");
+
+    extraBtn.disabled=true;
+
+    updateCharacterSelect();
+
+};
+let lives = 3;
+
+function update(){
+
+if(moveUp) player.y-=player.speed;
+if(moveDown) player.y+=player.speed;
+if(moveLeft) player.x-=player.speed;
+if(moveRight) player.x+=player.speed;
+
+if(skillCooldown>0) skillCooldown--;
+if(skillTimer>0) skillTimer--;
+
+if(skillTimer===1){
+
+    enemyBullets.length=0;
+
+    for(let i=enemies.length-1;i>=0;i--){
+
+        enemies[i].hp-=10;
+
+        if(enemies[i].hp<=0){
+            score+=100;
+            enemies.splice(i,1);
+        }
+
+    }
+
+if(boss){
+
+    boss.hp-=10;
+
+if(boss.hp<=0){
+if(stage===6 && lives===3){
+    localStorage.setItem("wr_extra","1");
+    extraUnlocked = true;
+    extraBtn.disabled = false;
+}
+if(stage===13 && lives===3){
+    localStorage.setItem("wr_extra2","1");
+}
+if(stage===6 || stage===13){
+        gameOver=true;
+        alert("VICTORY");
+
+        return;
+}
+if(stage===7){
+    playableUnlock=true;
+    localStorage.setItem("wr_playableUnlock","1");
+}
+if(stage===14){
+    playable2Unlock=true;
+    localStorage.setItem("wr_playable2Unlock","1");
+}
+if(stage===7 || stage===14){
+        gameOver=true;
+        alert("EXTRA VICTORY");
+
+        return;
+}
+    score+=1000;
+
+    enemyBullets.length=0;
+    bossName="";
+    bossNameTimer=0;
+
+if(stage===1){
+
+    stage=2;
+    stage2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===2){
+
+    stage=3;
+    stage3Timer=0;
+    bossSpawned=false;
+
+}else if(stage===3){
+
+    stage=4;
+    stage4Timer=0;
+    bossSpawned=false;
+
+}else if(stage===4){
+
+    stage=5;
+    stage5Timer=0;
+    bossSpawned=false;
+
+}else if(stage===5){
+
+    stage=6;
+    stage6Timer=0;
+    bossSpawned=false;
+
+}else if(stage===8){
+
+    stage=9;
+    stage2ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===9){
+
+    stage=10;
+    stage3ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===10){
+
+    stage=11;
+    stage4ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===11){
+
+    stage=12;
+    stage5ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===12){
+
+    stage=13;
+    stage6ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===15){
+
+    stage=16;
+    stage2ch3Timer=0;
+    bossSpawned=false;
+
+}else if(stage===16){
+
+    stage=17;
+    stage3ch3Timer=0;
+    bossSpawned=false;
+
+}
+    boss=null;
+    return;
+
+}
+
+}
+
+}
+
+    player.x=Math.max(16,Math.min(canvas.width-16,player.x));
+    player.y=Math.max(16,Math.min(canvas.height-16,player.y));
+
+// Đếm thời gian stage
+stageTimer++;
+
+// ===== Stage 1 =====
+if(stage===1){
+
+    if(!bossSpawned && stageTimer<60*15){
+
+        if(frame%40===0){
+
+            enemies.push({
+                x:Math.random()*(canvas.width-32)+16,
+                y:-20,
+                w:12,
+                h:12,
+                hp:2,
+                speed:2+Math.random()*1.5
+            });
+
+        }
+
+    }
+
+    if(!bossSpawned && stageTimer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:300,
+            maxHp:300
+        };
+
+        bossName="Jinrou";
+        bossNameTimer=180;
+
+    }
+
+}
+
+if(stage===2){
+
+    stage2Timer++;
+
+    if(!bossSpawned && frame%20===0){
+
+        enemies.push({
+            x:Math.random()*(canvas.width-32)+16,
+            y:-20,
+            w:12,
+            h:12,
+            hp:3,
+            speed:2.8+Math.random()*1.8
+        });
+
+    }
+
+    if(!bossSpawned && stage2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:450,
+            maxHp:450
+        };
+
+        bossName="Misora";
+        bossNameTimer=180;
+
+    }
+
+}
+
+// ===== Stage 3 =====
+
+if(stage===3){
+
+    stage3Timer++;
+
+    if(!bossSpawned && frame%16===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*120-20,
+
+            w:12,
+            h:12,
+
+            hp:4,
+
+            speed:3.5,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    if(!bossSpawned && stage3Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:600,
+            maxHp:600
+
+        };
+
+        bossName="Elis";
+        bossNameTimer=180;
+
+    }
+
+}
+
+// ===== Stage 4 =====
+
+if(stage===4){
+
+    stage4Timer++;
+
+    if(!bossSpawned && frame%14===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*120-20,
+
+            w:14,
+            h:14,
+
+            hp:5,
+            speed:4,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    if(!bossSpawned && stage4Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:750,
+            maxHp:750
+
+        };
+
+        bossName="Seraphel";
+        bossNameTimer=180;
+
+    }
+
+}
+
+// ===== Stage 5 =====
+
+if(stage===5){
+
+    stage5Timer++;
+
+    if(!bossSpawned && frame%12===0){
+
+if(Math.random()<0.5){
+
+    // Bay thẳng xuống
+    enemies.push({
+
+        x:Math.random()*(canvas.width-32)+16,
+        y:-20,
+
+        w:16,
+        h:16,
+
+        hp:6,
+        speed:4.5,
+
+        vx:0
+
+    });
+
+}else{
+
+    // Bay chéo
+    let left=Math.random()<0.5;
+
+    enemies.push({
+
+        x:left?-20:canvas.width+20,
+        y:Math.random()*120-20,
+
+        w:16,
+        h:16,
+
+        hp:6,
+        speed:4.5,
+
+        vx:left?2:-2
+
+    });
+
+}
+
+    }
+
+    if(!bossSpawned && stage5Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:900,
+            maxHp:900
+
+        };
+
+        bossName="Serial";
+        bossNameTimer=180;
+
+    }
+
+}
+
+// ===== Stage 6 =====
+
+if(stage===6){
+
+    stage6Timer++;
+
+    if(!bossSpawned && frame%10===0){
+
+if(Math.random()<0.5){
+
+    // Bay thẳng xuống
+    enemies.push({
+
+        x:Math.random()*(canvas.width-32)+16,
+        y:-20,
+
+        w:18,
+        h:18,
+
+        hp:8,
+        speed:5,
+
+        vx:0
+
+    });
+
+}else{
+
+    // Bay chéo
+    let left=Math.random()<0.5;
+
+    enemies.push({
+
+        x:left?-20:canvas.width+20,
+        y:Math.random()*120-20,
+
+        w:18,
+        h:18,
+
+        hp:8,
+        speed:5,
+
+        vx:left?2:-2
+
+    });
+
+}
+
+    }
+
+    if(!bossSpawned && stage6Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:1000,
+            maxHp:1000
+
+        };
+
+        bossName="Raizen";
+        bossNameTimer=180;
+
+    }
+
+}
+
+if(stage===7){
+
+score=4000;
+
+    stageExtraTimer++;
+
+    // Enemy trước boss
+    if(!bossSpawned && frame%8===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*160-20,
+
+            w:20,
+            h:20,
+
+            hp:10,
+
+            speed:5.5,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    // Boss Extra sau 15 giây
+    if(!bossSpawned && stageExtraTimer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:2500,
+            maxHp:2500
+
+        };
+
+        bossName="Yuchia";
+        bossNameTimer=180;
+
+    }
+
+}
+// ===== Chapter 2 - Stage 1 =====
+
+if(stage===8){
+
+    stage1ch2Timer++;
+
+    if(!bossSpawned && frame%40===0){
+
+            enemies.push({
+                x:Math.random()*(canvas.width-32)+16,
+                y:-20,
+                w:12,
+                h:12,
+                hp:2,
+                speed:2+Math.random()*1.5
+            });
+
+        }
+
+    if(!bossSpawned && stage1ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:300,
+            maxHp:300
+        };
+
+        bossName="Rinnie";
+        bossNameTimer=180;
+
+    }
+
+}
+if(stage===9){
+
+    stage2ch2Timer++;
+
+    if(!bossSpawned && frame%20===0){
+
+        enemies.push({
+            x:Math.random()*(canvas.width-32)+16,
+            y:-20,
+            w:12,
+            h:12,
+            hp:3,
+            speed:2.8+Math.random()*1.8
+        });
+
+    }
+
+    if(!bossSpawned && stage2ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:450,
+            maxHp:450
+        };
+
+        bossName="Misora";
+        bossNameTimer=180;
+
+    }
+
+}
+// ===== Chapter 2 - Stage 3 =====
+
+if(stage===10){
+
+    stage3ch2Timer++;
+
+    if(!bossSpawned && frame%16===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*120-20,
+
+            w:12,
+            h:12,
+
+            hp:4,
+
+            speed:3.5,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    if(!bossSpawned && stage3ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:600,
+            maxHp:600
+
+        };
+
+        bossName="Lysette";
+        bossNameTimer=180;
+
+    }
+
+}
+if(stage===11){
+
+    stage4ch2Timer++;
+
+    if(!bossSpawned && frame%14===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*120-20,
+
+            w:14,
+            h:14,
+
+            hp:5,
+            speed:4,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    if(!bossSpawned && stage4ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:750,
+            maxHp:750
+
+        };
+
+        bossName="Seraphel";
+        bossNameTimer=180;
+
+    }
+
+}
+if(stage===12){
+
+    stage5ch2Timer++;
+
+    if(!bossSpawned && frame%12===0){
+
+        if(Math.random()<0.5){
+
+            enemies.push({
+
+                x:Math.random()*(canvas.width-32)+16,
+                y:-20,
+
+                w:16,
+                h:16,
+
+                hp:6,
+                speed:4.5,
+
+                vx:0
+
+            });
+
+        }else{
+
+            let left=Math.random()<0.5;
+
+            enemies.push({
+
+                x:left?-20:canvas.width+20,
+                y:Math.random()*120-20,
+
+                w:16,
+                h:16,
+
+                hp:6,
+                speed:4.5,
+
+                vx:left?2:-2
+
+            });
+
+        }
+
+    }
+
+    if(!bossSpawned && stage5ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:900,
+            maxHp:900
+
+        };
+
+        bossName="Merivelle";
+        bossNameTimer=180;
+
+    }
+
+}
+// ===== Chapter 2 - Stage 6 =====
+
+if(stage===13){
+
+    stage6ch2Timer++;
+
+    if(!bossSpawned && frame%10===0){
+
+        if(Math.random()<0.5){
+
+            enemies.push({
+
+                x:Math.random()*(canvas.width-32)+16,
+                y:-20,
+
+                w:18,
+                h:18,
+
+                hp:8,
+                speed:5,
+
+                vx:0
+
+            });
+
+        }else{
+
+            let left=Math.random()<0.5;
+
+            enemies.push({
+
+                x:left?-20:canvas.width+20,
+                y:Math.random()*120-20,
+
+                w:18,
+                h:18,
+
+                hp:8,
+                speed:5,
+
+                vx:left?2:-2
+
+            });
+
+        }
+
+    }
+
+    if(!bossSpawned && stage6ch2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:1000,
+            maxHp:1000
+
+        };
+
+        bossName="Milipsar";
+        bossNameTimer=180;
+
+    }
+
+}
+if(stage===14){
+
+score=4000;
+
+    stageExtrach2Timer++;
+
+    // Enemy trước boss
+    if(!bossSpawned && frame%8===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+
+            x:left?-20:canvas.width+20,
+            y:Math.random()*160-20,
+
+            w:20,
+            h:20,
+
+            hp:10,
+
+            speed:5.5,
+
+            vx:left?2:-2
+
+        });
+
+    }
+
+    // Boss Extra sau 15 giây
+    if(!bossSpawned && stageExtrach2Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+
+            x:200,
+            y:-80,
+
+            hp:2500,
+            maxHp:2500
+
+        };
+
+        bossName="Yumei";
+        bossNameTimer=180;
+
+    }
+
+}
+if(stage===15){
+
+    stage1ch3Timer++;
+
+    if(!bossSpawned && frame%40===0){
+
+            enemies.push({
+                x:Math.random()*(canvas.width-32)+16,
+                y:-20,
+                w:12,
+                h:12,
+                hp:2,
+                speed:2+Math.random()*1.5
+            });
+
+        }
+
+    if(!bossSpawned && stage1ch3Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:300,
+            maxHp:300
+        };
+
+        bossName="Milipsar";
+        bossNameTimer=180;
+
+    }
+
+}
+// ===== Chapter 3 - Stage 2 =====
+if(stage===16){
+
+    stage2ch3Timer++;
+
+    if(!bossSpawned && frame%20===0){
+
+        enemies.push({
+            x:Math.random()*(canvas.width-32)+16,
+            y:-20,
+            w:12,
+            h:12,
+            hp:3,
+            speed:2.8+Math.random()*1.8
+        });
+
+    }
+
+    if(!bossSpawned && stage2ch3Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:450,
+            maxHp:450
+        };
+
+        bossName="Velsira";
+        bossNameTimer=180;
+    }
+
+}
+// ===== Chapter 3 - Stage 3 =====
+if(stage===17){
+
+    stage3ch3Timer++;
+
+    if(!bossSpawned && frame%16===0){
+
+        let left=Math.random()<0.5;
+
+        enemies.push({
+            x:left?-20:canvas.width+20,
+            y:Math.random()*120-20,
+            w:12,
+            h:12,
+            hp:4,
+            speed:3.5,
+            vx:left?2:-2
+        });
+
+    }
+
+    if(!bossSpawned && stage3ch3Timer>=60*15){
+
+        bossSpawned=true;
+
+        boss={
+            x:200,
+            y:-80,
+            hp:600,
+            maxHp:600
+        };
+
+        bossName="Lunemi";
+        bossNameTimer=180;
+    }
+
+}
+if(frame%8===0){
+
+    let shots=1;
+
+    if(score>=4000){
+        shots=5;
+    }else if(score>=3000){
+        shots=4;
+   }else if(score>=2000){
+        shots=3;
+   }else if(score>=1000){
+        shots=2;
+   }
+
+    if(shots===1){
+
+        bullets.push({
+            x:player.x,
+            y:player.y-12,
+            vx:0,
+            vy:-8,
+            r:3
+        });
+
+    }else{
+
+        for(let i=0;i<shots;i++){
+
+            let spread=(i-(shots-1)/2)*1.2;
+
+            bullets.push({
+                x:player.x,
+                y:player.y-12,
+                vx:spread,
+                vy:-8,
+                r:3
+            });
+
+        }
+
+    }
+
+}
+
+    // Update đạn player
+    for(let i=bullets.length-1;i>=0;i--){
+
+        let b=bullets[i];
+
+        b.x+=b.vx;
+        b.y+=b.vy;
+
+        if(b.y<-20){
+            bullets.splice(i,1);
+        }
+}
+if(boss){
+
+    for(let i=bullets.length-1;i>=0;i--){
+
+        let b=bullets[i];
+
+        if(
+            Math.abs(b.x-boss.x)<40 &&
+            Math.abs(b.y-boss.y)<40
+        ){
+
+if(!(stage===17 && boss.invulnerable)){
+    boss.hp-=player.damage;
+}
+            bullets.splice(i,1);
+
+if(boss.hp<=0){
+
+if(stage===6 && lives===3){
+    localStorage.setItem("wr_extra","1");
+    extraUnlocked = true;
+    extraBtn.disabled = false;
+}
+if(stage===13 && lives===3){
+    localStorage.setItem("wr_extra2","1");
+}
+if(stage===6 || stage===13){
+        gameOver=true;
+        alert("VICTORY");
+
+        return;
+}
+if(stage===7){
+    playableUnlock=true;
+    localStorage.setItem("wr_playableUnlock","1");
+}
+if(stage===14){
+    playable2Unlock=true;
+    localStorage.setItem("wr_playable2Unlock","1");
+}
+if(stage===7 || stage===14){
+        gameOver=true;
+        alert("EXTRA VICTORY");
+
+        return;
+}
+    score+=1000;
+
+    enemyBullets.length=0;
+    bossName="";
+    bossNameTimer=0;
+
+if(stage===1){
+
+    stage=2;
+    stage2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===2){
+
+    stage=3;
+    stage3Timer=0;
+    bossSpawned=false;
+
+}else if(stage===3){
+
+    stage=4;
+    stage4Timer=0;
+    bossSpawned=false;
+
+}else if(stage===4){
+
+    stage=5;
+    stage5Timer=0;
+    bossSpawned=false;
+
+}else if(stage===5){
+
+    stage=6;
+    stage6Timer=0;
+    bossSpawned=false;
+
+}else if(stage===8){
+
+    stage=9;
+    stage2ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===9){
+
+    stage=10;
+    stage3ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===10){
+
+    stage=11;
+    stage4ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===11){
+
+    stage=12;
+    stage5ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===12){
+
+    stage=13;
+    stage6ch2Timer=0;
+    bossSpawned=false;
+
+}else if(stage===15){
+
+    stage=16;
+    stage2ch3Timer=0;
+    bossSpawned=false;
+
+}else if(stage===16){
+
+    stage=17;
+    stage3ch3Timer=0;
+    bossSpawned=false;
+
+}
+    boss=null;
+    return;
+
+}
+
+        }
+
+    }
+
+}
+if(boss && skillTimer===0){
+
+    if(boss.y<100){
+        boss.y+=2;
+    }
+
+}
+
+// Pattern boss
+if(skillTimer===0 && boss){
+
+    // ==========================
+    // JINROU
+    // ==========================
+    if(stage===1){
+
+        let cycle=frame%360;
+
+        if(cycle<120){
+
+            if(frame%20===0){
+
+                for(let i=0;i<18;i++){
+
+                    let a=i*Math.PI*2/18;
+
+                    enemyBullets.push({
+                        x:boss.x,
+                        y:boss.y,
+                        vx:Math.cos(a)*2.5,
+                        vy:Math.sin(a)*2.5,
+                        r:5
+                    });
+
+                }
+
+            }
+
+        }
+
+        else if(cycle<240){
+
+            if(frame%10===0){
+
+                let dx=player.x-boss.x;
+                let dy=player.y-boss.y;
+                let d=Math.hypot(dx,dy);
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:dx/d*4,
+                    vy:dy/d*4,
+                    r:5
+                });
+
+            }
+
+        }
+
+        else{
+
+            if(frame%6===0){
+
+                let base=Math.atan2(
+                    player.y-boss.y,
+                    player.x-boss.x
+                );
+
+                for(let i=-3;i<=3;i++){
+
+                    let a=base+i*0.18;
+
+                    enemyBullets.push({
+                        x:boss.x,
+                        y:boss.y,
+                        vx:Math.cos(a)*3,
+                        vy:Math.sin(a)*3,
+                        r:5
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+else if(stage===2){
+
+    let cycle=frame%480;
+
+
+    // ==========================
+    // Đạn Misora
+    // ==========================
+
+    if(cycle<160){
+
+        // vòng đạn xoay
+        if(frame%45===0){
+
+            let spin=frame*0.08;
+
+            for(let i=0;i<16;i++){
+
+                let a=spin+i*Math.PI*2/16;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.5,
+                    vy:Math.sin(a)*2.5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    else if(cycle<320){
+
+        // quạt đạn aim lệch
+
+        if(frame%35===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+
+            for(let i=-4;i<=4;i++){
+
+                let a=base+i*0.12;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*3.8,
+                    vy:Math.sin(a)*3.8,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    else{
+
+        // đạn rơi từ trên xuống
+
+        if(frame%30===0){
+
+            for(let i=0;i<8;i++){
+
+                enemyBullets.push({
+
+                    x:40+i*45,
+                    y:-20,
+
+                    vx:(player.x-(40+i*45))*0.01,
+                    vy:3.5,
+
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+
+    // ==========================
+    // Chém cũ giữ nguyên
+    // ==========================
+
+
+// Chém ngang
+if(cycle<160){
+
+    if(frame%50===0){
+
+        let slashY=Math.random()*250+150;
+
+        for(let i=0;i<30;i++){
+
+            enemyBullets.push({
+
+                x:100-i*15,
+                y:slashY,
+
+                vx:6,
+                vy:0,
+
+                r:6
+
+            });
+
+        }
+
+    }
+
+}
+
+
+    // Chém chéo từ trên xuống
+    else if(cycle<320){
+
+        if(frame%50===0){
+
+            let startY=-50;
+
+            for(let i=0;i<30;i++){
+
+                enemyBullets.push({
+
+                    x:i*15,
+                    y:startY+i*15,
+                    vx:3.5,
+                    vy:3.5,
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    // Chém chéo từ dưới lên
+    else{
+
+        if(frame%50===0){
+
+            let startY=canvas.height+50;
+
+            for(let i=0;i<30;i++){
+
+                enemyBullets.push({
+
+                    x:i*15,
+                    y:startY-i*15,
+                    vx:3.5,
+                    vy:-3.5,
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===3){
+
+    let cycle=frame%540;
+
+// ==========================  
+// Pattern 1 - Đạn linh hồn  
+// ==========================  
+if(cycle<180){
+
+        if(frame%10===0){
+
+            let spin=frame*0.15;
+
+            for(let i=0;i<4;i++){
+
+                let a=spin+i*Math.PI/2;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.2,
+                    vy:Math.sin(a)*2.2,
+
+                    r:3
+
+                });
+
+            }
+
+        }
+
+}
+
+    // ==========================
+    // Pattern 2 - Harvest of Death
+    // ==========================
+    else if(cycle<360){
+
+        if(frame%60===0){
+
+            for(let s=0;s<3;s++){
+
+                let cx=40+s*160;
+
+                let base=Math.PI/2;
+
+                // Cán
+                for(let i=0;i<7;i++){
+
+                    enemyBullets.push({
+
+                        x:cx,
+                        y:-40-i*8,
+
+                        vx:0,
+                        vy:3.5,
+
+                        r:4
+
+                    });
+
+                }
+
+                // Lưỡi cong
+                for(let i=0;i<13;i++){
+
+                    let a=-0.15+i*0.14;
+                    let rr=24+i*2;
+
+                    enemyBullets.push({
+
+                        x:cx+Math.cos(base+a)*rr,
+                        y:-40+Math.sin(base+a)*rr,
+
+                        vx:0,
+                        vy:3.5,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // Pattern 3 - Death Reaper
+    // ==========================
+    else{
+if(frame%50===0){
+
+let base=Math.atan2(  
+player.y-boss.y,  
+player.x-boss.x  
+);
+
+for(let side=-1;side<=1;side+=2){
+
+let off=side*Math.PI/2;
+
+// Cán lưỡi hái  
+for(let i=0;i<8;i++){
+
+let ox=Math.cos(base+off)*i*8;  
+let oy=Math.sin(base+off)*i*8;
+
+enemyBullets.push({  
+x:boss.x+ox,  
+y:boss.y+oy,  
+vx:Math.cos(base)*2.8,  
+vy:Math.sin(base)*2.8,  
+r:4  
+});
+
+}
+
+// Phần cong của lưỡi  
+for(let i=0;i<14;i++){
+
+let a=-0.2+i*0.13;
+
+let rr=28+i*2;
+
+let ox=  
+Math.cos(base+off+a)*rr+  
+Math.cos(base+off)*56;
+
+let oy=  
+Math.sin(base+off+a)*rr+  
+Math.sin(base+off)*56;
+
+enemyBullets.push({  
+x:boss.x+ox,  
+y:boss.y+oy,  
+vx:Math.cos(base)*2.8,  
+vy:Math.sin(base)*2.8,  
+r:5  
+});
+}
+}
+
+}
+
+}
+
+}
+else if(stage===4){
+
+    let cycle=frame%720;
+
+    // ==========================
+    // Pattern 1 - Judgment Cross
+    // ==========================
+    if(cycle<240){
+
+let spin = frame * 0.08;
+
+        if(frame%20===0){
+
+            // Dấu +
+            for(let i=0;i<4;i++){
+
+let a = spin + i*Math.PI/2;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*4,
+                    vy:Math.sin(a)*4,
+
+                    r:6
+
+                });
+
+            }
+
+            // Dấu X
+            for(let i=0;i<4;i++){
+
+let a = spin + Math.PI/4 + i*Math.PI/2;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*4,
+                    vy:Math.sin(a)*4,
+
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // Pattern 2 - Divine Purge
+    // ==========================
+    else if(cycle<480){
+
+        if(frame%30===0){
+
+            let gap=Math.floor(Math.random()*8);
+
+            for(let i=0;i<8;i++){
+
+                if(i===gap || i===gap+1) continue;
+
+                let x=25+i*50;
+
+                for(let j=0;j<10;j++){
+
+                    enemyBullets.push({
+
+                        x:x,
+                        y:-j*36,
+
+                        vx:0,
+                        vy:3.2,
+
+                        r:6
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // Pattern 3 - Final Verdict
+    // ==========================
+    else{
+
+let spin = frame * 0.1;
+
+        if(frame%10===0){
+
+            // Vòng tròn
+            for(let i=0;i<24;i++){
+
+let a = spin + i*Math.PI*2/24;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.6,
+                    vy:Math.sin(a)*2.6,
+
+                    r:5
+
+                });
+
+            }
+
+            // 8 tia thanh tẩy
+            for(let i=0;i<8;i++){
+
+let a = spin + i*Math.PI/4;
+
+                for(let k=0;k<8;k++){
+
+                    enemyBullets.push({
+
+                        x:boss.x+Math.cos(a)*k*18,
+                        y:boss.y+Math.sin(a)*k*18,
+
+                        vx:Math.cos(a)*4,
+                        vy:Math.sin(a)*4,
+
+                        r:4
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+}
+
+// ==========================
+// SERIAL
+// ==========================
+else if(stage===5){
+
+    let cycle=frame%720;
+
+    // Heaven
+    if(cycle<240){
+
+        if(frame%18===0){
+
+            let spin=frame*0.05;
+
+            for(let i=0;i<24;i++){
+
+                let a=spin+i*Math.PI*2/24;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*2.4,
+                    vy:Math.sin(a)*2.4,
+                    r:5
+                });
+
+            }
+
+        }
+
+    }
+
+// Border of Life & Death
+else if(cycle<480){
+
+    if(frame%25===0){
+
+        for(let i=0;i<6;i++){
+
+            let x=40+i*64;
+
+            enemyBullets.push({
+                x:x,
+                y:-20,
+                vx:0,
+                vy:3.5,
+                r:5
+            });
+
+            enemyBullets.push({
+                x:x,
+                y:canvas.height+20,
+                vx:0,
+                vy:-3.5,
+                r:5
+            });
+
+        }
+
+    }
+
+}
+
+    // Heaven / Nether mixed
+    else{
+
+        if(frame%12===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-5;i<=5;i++){
+
+                let a=base+i*0.14;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*4.2,
+                    vy:Math.sin(a)*4.2,
+                    r:6
+                });
+
+            }
+
+        }
+
+        if(frame%40===0){
+
+            for(let i=0;i<16;i++){
+
+                let a=i*Math.PI*2/16;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+                    r:4
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+// ==========================
+// RAIZEN
+// ==========================
+else if(stage===6){
+
+    let cycle=frame%540;
+
+    // Slash ngang
+    if(cycle<180){
+
+        if(frame%15===0){
+
+            let y=Math.random()*canvas.height;
+
+            for(let i=0;i<40;i++){
+
+                enemyBullets.push({
+                    x:-i*12,
+                    y:y,
+                    vx:8,
+                    vy:0,
+                    r:6
+                });
+
+            }
+
+        }
+
+    }
+
+    // Slash chéo xuống
+    else if(cycle<360){
+
+        if(frame%25===0){
+
+            for(let i=0;i<40;i++){
+
+                enemyBullets.push({
+                    x:i*12,
+                    y:-60+i*12,
+                    vx:5,
+                    vy:5,
+                    r:6
+                });
+
+            }
+
+        }
+
+    }
+
+    // Slash chéo lên + aim
+    else{
+
+        if(frame%25===0){
+
+            for(let i=0;i<40;i++){
+
+                enemyBullets.push({
+                    x:i*12,
+                    y:canvas.height+60-i*12,
+                    vx:5,
+                    vy:-5,
+                    r:6
+                });
+
+            }
+
+        }
+
+        if(frame%8===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-2;i<=2;i++){
+
+                let a=base+i*0.08;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*5,
+                    vy:Math.sin(a)*5,
+                    r:4
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===7){
+
+    let cycle=frame%1200;
+
+//==========================
+// Pattern 1
+//==========================
+if(cycle<120){
+
+    if(frame%5===0){
+
+        let spin = frame * 0.05;
+
+        for(let t=0;t<1;t++){
+
+            let a = spin + t*Math.PI/2;
+
+            for(let i=0;i<12;i++){
+
+                enemyBullets.push({
+
+                    x:boss.x + Math.cos(a)*i*5,
+                    y:boss.y + Math.sin(a)*i*5,
+
+                    vx:Math.cos(a)*6,
+                    vy:Math.sin(a)*6,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 2
+//==========================
+else if(cycle<240){
+
+    if(frame%10===0){
+
+        let spin=frame*0.08;
+
+        for(let ring=0;ring<2;ring++){
+
+            for(let i=0;i<18;i++){
+
+                let a=spin+i*Math.PI*2/18+ring*Math.PI/18;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*(2.5+ring*1.2),
+                    vy:Math.sin(a)*(2.5+ring*1.2),
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 3
+//==========================
+else if(cycle<360){
+
+    if(frame%16===0){
+
+        let gap=Math.floor(Math.random()*9);
+
+        for(let i=0;i<9;i++){
+
+            if(i===gap) continue;
+
+            enemyBullets.push({
+
+                x:i*45+20,
+                y:-10,
+
+                vx:0,
+                vy:4.5,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    if(frame%45===0){
+
+        for(let i=0;i<18;i++){
+
+            let a=i*Math.PI*2/18;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2.8,
+                vy:Math.sin(a)*2.8,
+
+                r:4
+
+            });
+
+        }
+
+    }
+
+}
+
+    //==========================
+    // Pattern 4
+    //==========================
+    else if(cycle<480){
+
+        if(frame%20===0){
+
+            let spin=frame*0.07;
+
+            for(let i=0;i<32;i++){
+
+                let a=spin+i*Math.PI*2/32;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+
+                    ax:Math.cos(a)*0.06,
+                    ay:Math.sin(a)*0.06,
+
+                    r:4
+
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 5
+    //==========================
+    else if(cycle<600){
+
+        if(frame%4===0){
+
+            let s=frame*0.10;
+
+            for(let i=0;i<2;i++){
+
+                let dir=i?1:-1;
+
+                let a=s*dir;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*5,
+                    vy:Math.sin(a)*5,
+
+                    r:5
+
+                });
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a+Math.PI)*5,
+                    vy:Math.sin(a+Math.PI)*5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 6
+    //==========================
+    else if(cycle<720){
+
+        if(frame%18===0){
+
+            let gap=Math.floor(Math.random()*10);
+
+            for(let i=0;i<10;i++){
+
+                if(i===gap) continue;
+
+                for(let j=0;j<24;j++){
+
+                    enemyBullets.push({
+
+                        x:i*40+20,
+                        y:-j*22,
+
+                        vx:0,
+                        vy:6,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+//==========================
+// Pattern 7
+//==========================
+else if(cycle<840){
+
+    if(frame%22===0){
+
+        let base=Math.atan2(
+            player.y-boss.y,
+            player.x-boss.x
+        );
+
+        for(let i=-3;i<=3;i++){
+
+            let a=base+i*0.22;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*5,
+                vy:Math.sin(a)*5,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    if(frame%10===0){
+
+        let spin=frame*0.06;
+
+        for(let i=0;i<8;i++){
+
+            let a=spin+i*Math.PI*2/8;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2,
+                vy:Math.sin(a)*2,
+
+                r:4
+
+            });
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 8
+//==========================
+else if(cycle<960){
+
+    if(frame%18===0){
+
+        let base=Math.atan2(
+            player.y-boss.y,
+            player.x-boss.x
+        );
+
+        for(let i=-4;i<=4;i++){
+
+            let a=base+i*0.18;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*4,
+                vy:Math.sin(a)*4,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    if(frame%6===0){
+
+        let spin=frame*0.08;
+
+        for(let i=0;i<10;i++){
+
+            let a=spin+i*Math.PI*2/10;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2.2,
+                vy:Math.sin(a)*2.2,
+
+                r:4
+
+            });
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 9
+//==========================
+else if(cycle<1080){
+
+    if(frame%28===0){
+
+        for(let side=0;side<2;side++){
+
+            let x=side?canvas.width+20:-20;
+
+            for(let i=0;i<8;i++){
+
+                enemyBullets.push({
+
+                    x:x,
+                    y:80+i*55,
+
+                    vx:side?-3.8:3.8,
+                    vy:0,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+    if(frame%50===0){
+
+        let base=Math.atan2(
+            player.y-boss.y,
+            player.x-boss.x
+        );
+
+        for(let i=-2;i<=2;i++){
+
+            let a=base+i*0.18;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*4.5,
+                vy:Math.sin(a)*4.5,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 10
+//==========================
+else{
+
+    // Vòng xoáy
+    if(frame%12===0){
+
+        let spin=frame*0.08;
+
+        for(let i=0;i<20;i++){
+
+            let a=spin+i*Math.PI*2/20;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2.8,
+                vy:Math.sin(a)*2.8,
+
+                r:4
+
+            });
+
+        }
+
+    }
+
+    // Mưa đạn có khe
+    if(frame%45===0){
+
+        let gap=Math.floor(Math.random()*8);
+
+        for(let i=0;i<8;i++){
+
+            if(i===gap) continue;
+
+            enemyBullets.push({
+
+                x:25+i*50,
+                y:-10,
+
+                vx:0,
+                vy:4,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+}
+
+}
+
+else if(stage===8){
+
+    let cycle=frame%540;
+
+    //==========================
+    // Pattern 1 - Mirror Wall
+    //==========================
+    if(cycle<180){
+
+        if(frame%12===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-3;i<=3;i++){
+
+                let a=base+i*0.15;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*3,
+                    vy:Math.sin(a)*3,
+                    r:5,
+                    reflectD:1
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 2
+    //==========================
+    else if(cycle<360){
+
+        if(frame%60===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-2;i<=2;i++){
+
+                let a=base+i*0.12;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*5,
+                    vy:Math.sin(a)*5,
+
+                    r:6,
+                    reflect:1
+
+                });
+
+            }
+
+        }
+
+    }
+
+//==========================
+// Pattern 3 - Reflect Player Bullets
+//==========================
+else{
+
+    for(let i=bullets.length-1;i>=0;i--){
+
+        let b=bullets[i];
+
+        if(
+            Math.abs(b.x-boss.x)<42 &&
+            Math.abs(b.y-boss.y)<42
+        ){
+
+            enemyBullets.push({
+
+                x:b.x,
+                y:b.y,
+
+                vx:-b.vx,
+                vy:-b.vy,
+
+                r:5
+
+            });
+
+            bullets.splice(i,1);
+
+        }
+
+    }
+
+}
+
+}
+
+else if(stage===9){
+
+    let cycle=frame%480;
+
+
+    // ==========================
+    // Đạn Misora
+    // ==========================
+
+    if(cycle<160){
+
+        // vòng đạn xoay
+        if(frame%45===0){
+
+            let spin=frame*0.08;
+
+            for(let i=0;i<16;i++){
+
+                let a=spin+i*Math.PI*2/16;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.5,
+                    vy:Math.sin(a)*2.5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    else if(cycle<320){
+
+        // quạt đạn aim lệch
+
+        if(frame%35===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+
+            for(let i=-4;i<=4;i++){
+
+                let a=base+i*0.12;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*3.8,
+                    vy:Math.sin(a)*3.8,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    else{
+
+        // đạn rơi từ trên xuống
+
+        if(frame%30===0){
+
+            for(let i=0;i<8;i++){
+
+                enemyBullets.push({
+
+                    x:40+i*45,
+                    y:-20,
+
+                    vx:(player.x-(40+i*45))*0.01,
+                    vy:3.5,
+
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+
+    // ==========================
+    // Chém cũ giữ nguyên
+    // ==========================
+
+
+// Chém ngang
+if(cycle<160){
+
+    if(frame%50===0){
+
+        let slashY=Math.random()*250+150;
+
+        for(let i=0;i<30;i++){
+
+            enemyBullets.push({
+
+                x:100-i*15,
+                y:slashY,
+
+                vx:6,
+                vy:0,
+
+                r:6
+
+            });
+
+        }
+
+    }
+
+}
+
+
+    // Chém chéo từ trên xuống
+    else if(cycle<320){
+
+        if(frame%50===0){
+
+            let startY=-50;
+
+            for(let i=0;i<30;i++){
+
+                enemyBullets.push({
+
+                    x:i*15,
+                    y:startY+i*15,
+                    vx:3.5,
+                    vy:3.5,
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+
+    // Chém chéo từ dưới lên
+    else{
+
+        if(frame%50===0){
+
+            let startY=canvas.height+50;
+
+            for(let i=0;i<30;i++){
+
+                enemyBullets.push({
+
+                    x:i*15,
+                    y:startY-i*15,
+                    vx:3.5,
+                    vy:-3.5,
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===10){
+
+    let cycle=frame%540;
+
+    //==========================
+    // Pattern 1 - Fire & Water
+    //==========================
+    if(cycle<180){
+
+        // Lửa
+        if(frame%20===0){
+
+            let spin=frame*0.08;
+
+            for(let i=0;i<10;i++){
+
+                let a=spin+i*Math.PI*2/10;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*3.8,
+                    vy:Math.sin(a)*3.8,
+                    r:6,
+                    color:"red"
+                });
+
+            }
+
+        }
+
+        // Nước
+        if(frame%8===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-2;i<=2;i++){
+
+                let a=base+i*0.18;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*2.5,
+                    vy:Math.sin(a)*2.5,
+                    r:4,
+                    color:"blue"
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 2 - Wind & Earth
+    //==========================
+    else if(cycle<360){
+
+        // Gió xoáy
+        if(frame%10===0){
+
+            let spin=frame*0.12;
+
+            for(let i=0;i<12;i++){
+
+                let a=spin+i*Math.PI*2/12;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+                    ax:Math.cos(a)*0.03,
+                    ay:Math.sin(a)*0.03,
+                    r:4
+                });
+
+            }
+
+        }
+
+        // Đất từ trên rơi xuống có khe
+        if(frame%45===0){
+
+            let gap=Math.floor(Math.random()*8);
+
+            for(let i=0;i<8;i++){
+
+                if(i===gap) continue;
+
+                enemyBullets.push({
+
+                    x:25+i*50,
+                    y:-20,
+
+                    vx:0,
+                    vy:4.5,
+
+                    r:7,
+                    color:"brown"
+
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 3 - Purple Thunder
+    //==========================
+    else{
+
+        if(frame%30===0){
+
+            let gap=Math.floor(Math.random()*8);
+
+            for(let i=0;i<6;i++){
+
+                if(i===gap || i===gap+1) continue;
+
+                let x=25+i*64;
+
+                for(let j=0;j<10;j++){
+
+                    enemyBullets.push({
+
+                        x:x,
+                        y:-j*36,
+
+                        vx:0,
+                        vy:3.2,
+
+                        r:6,
+                    color:"purple"
+                    });
+
+                }
+
+            }
+
+        }
+
+        // Sét nổ tròn
+        if(frame%60===0){
+
+            for(let i=0;i<20;i++){
+
+                let a=i*Math.PI*2/20;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*3.2,
+                    vy:Math.sin(a)*3.2,
+
+                    r:4,
+                    color:"violet"
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===11){
+
+    let cycle=frame%720;
+
+    // ==========================
+    // Pattern 1 - Judgment Cross
+    // ==========================
+    if(cycle<240){
+
+let spin = frame * 0.08;
+
+        if(frame%20===0){
+
+            // Dấu +
+            for(let i=0;i<4;i++){
+
+let a = spin + i*Math.PI/2;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*4,
+                    vy:Math.sin(a)*4,
+
+                    r:6
+
+                });
+
+            }
+
+            // Dấu X
+            for(let i=0;i<4;i++){
+
+let a = spin + Math.PI/4 + i*Math.PI/2;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*4,
+                    vy:Math.sin(a)*4,
+
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // Pattern 2 - Divine Purge
+    // ==========================
+    else if(cycle<480){
+
+        if(frame%30===0){
+
+            let gap=Math.floor(Math.random()*8);
+
+            for(let i=0;i<8;i++){
+
+                if(i===gap || i===gap+1) continue;
+
+                let x=25+i*50;
+
+                for(let j=0;j<10;j++){
+
+                    enemyBullets.push({
+
+                        x:x,
+                        y:-j*36,
+
+                        vx:0,
+                        vy:3.2,
+
+                        r:6
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // Pattern 3 - Final Verdict
+    // ==========================
+    else{
+
+let spin = frame * 0.1;
+
+        if(frame%10===0){
+
+            // Vòng tròn
+            for(let i=0;i<24;i++){
+
+let a = spin + i*Math.PI*2/24;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.6,
+                    vy:Math.sin(a)*2.6,
+
+                    r:5
+
+                });
+
+            }
+
+            // 8 tia thanh tẩy
+            for(let i=0;i<8;i++){
+
+let a = spin + i*Math.PI/4;
+
+                for(let k=0;k<8;k++){
+
+                    enemyBullets.push({
+
+                        x:boss.x+Math.cos(a)*k*18,
+                        y:boss.y+Math.sin(a)*k*18,
+
+                        vx:Math.cos(a)*4,
+                        vy:Math.sin(a)*4,
+
+                        r:4
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===12){
+
+    let cycle=frame%720;
+
+    // Pattern 1 - Vine Wheel
+    if(cycle<240){
+
+        if(frame%18===0){
+
+            let spin=frame*0.05;
+
+            for(let i=0;i<20;i++){
+
+                let a=spin+i*Math.PI*2/20;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2.5,
+                    vy:Math.sin(a)*2.5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+    // Pattern 2 - Vine Cage
+    else if(cycle<480){
+
+        if(frame%35===0){
+
+            let gap=Math.floor(Math.random()*8);
+
+            for(let i=0;i<8;i++){
+
+                if(i===gap) continue;
+
+                for(let j=0;j<12;j++){
+
+                    enemyBullets.push({
+
+                        x:25+i*50,
+                        y:-j*30,
+
+                        vx:0,
+                        vy:3.6,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // Pattern 3 - Thorn Bloom
+    else{
+
+        if(frame%12===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-5;i<=5;i++){
+
+                let a=base+i*0.12;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*4.5,
+                    vy:Math.sin(a)*4.5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+        if(frame%50===0){
+
+            for(let i=0;i<16;i++){
+
+                let a=i*Math.PI*2/16;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+
+                    r:4
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+else if(stage===13){
+
+    let cycle=frame%540;
+
+    //==========================
+    // Pattern 1
+    // Ngôi sao
+    //==========================
+    if(cycle<180){
+
+        if(frame%25===0){
+
+            let spin=frame*0.04;
+
+            for(let i=0;i<5;i++){
+
+                let a1=spin+i*Math.PI*2/5;
+                let a2=spin+((i+2)%5)*Math.PI*2/5;
+
+                for(let t=0;t<=1;t+=0.08){
+
+                    enemyBullets.push({
+
+                        x:boss.x+
+                            (Math.cos(a1)*(1-t)+Math.cos(a2)*t)*70,
+
+                        y:boss.y+
+                            (Math.sin(a1)*(1-t)+Math.sin(a2)*t)*70,
+
+                        vx:0,
+                        vy:2.8,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 2
+    // Mưa đạn từ mép trên
+    //==========================
+    else if(cycle<360){
+
+        if(frame%14===0){
+
+            for(let i=0;i<10;i++){
+
+                enemyBullets.push({
+
+                    x:20+i*40,
+                    y:-20,
+
+                    vx:(Math.random()-0.5)*0.5,
+                    vy:5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+    //==========================
+    // Pattern 3
+    // Kết hợp
+    //==========================
+    else{
+
+        if(frame%40===0){
+
+            let spin=frame*0.05;
+
+            for(let i=0;i<5;i++){
+
+                let a1=spin+i*Math.PI*2/5;
+                let a2=spin+((i+2)%5)*Math.PI*2/5;
+
+                for(let t=0;t<=1;t+=0.1){
+
+                    enemyBullets.push({
+
+                        x:boss.x+
+                            (Math.cos(a1)*(1-t)+Math.cos(a2)*t)*65,
+
+                        y:boss.y+
+                            (Math.sin(a1)*(1-t)+Math.sin(a2)*t)*65,
+
+                        vx:Math.cos(spin)*0.8,
+                        vy:3.5,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+        if(frame%18===0){
+
+            let gap=Math.floor(Math.random()*10);
+
+            for(let i=0;i<10;i++){
+
+                if(i===gap) continue;
+
+                enemyBullets.push({
+
+                    x:20+i*40,
+                    y:-20,
+
+                    vx:0,
+                    vy:5.2,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+else if(stage===14){
+
+let cycle=frame%1200;
+
+//==========================
+// Pattern 1 - False Wish
+//==========================
+if(cycle<120){
+let speed = -2.5;
+    if(frame%12===0){
+
+        let base=Math.atan2(
+            player.y-boss.y,
+            player.x-boss.x
+        );
+
+        for(let i=-4;i<=4;i++){
+
+            let a=base+i*0.10;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*speed,
+                vy:Math.sin(a)*speed,
+
+                ax:+Math.cos(a)*0.02,
+                ay:+Math.sin(a)*0.02,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 2 - Wish Rewrite
+//==========================
+else if(cycle<240){
+
+    if(frame%45===0){
+
+        for(let i=0;i<12;i++){
+
+            let a=i*Math.PI*2/12;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*3,
+                vy:Math.sin(a)*3,
+
+                rewrite:60,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    for(let b of enemyBullets){
+
+        if(b.rewrite){
+
+            b.rewrite--;
+
+            if(b.rewrite===0){
+
+                let ang=Math.atan2(
+                    player.y-b.y,
+                    player.x-b.x
+                );
+
+                let sp=Math.hypot(b.vx,b.vy);
+
+                b.vx=Math.cos(ang)*sp;
+                b.vy=Math.sin(ang)*sp;
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 3 - Broken Promise
+//==========================
+else if(cycle<360){
+
+    if(frame%18===0){
+
+        let gap=Math.floor(Math.random()*10);
+
+        for(let i=0;i<10;i++){
+
+            if(i===gap) continue;
+
+            enemyBullets.push({
+
+                x:20+i*40,
+                y:-20,
+
+                vx:0,
+                vy:3.8,
+
+                split:70,
+
+                r:6
+
+            });
+
+        }
+
+    }
+
+    for(let i=enemyBullets.length-1;i>=0;i--){
+
+        let b=enemyBullets[i];
+
+        if(b.split){
+
+            b.split--;
+
+            if(b.split===0){
+
+                enemyBullets.push({
+
+                    x:b.x,
+                    y:b.y,
+
+                    vx:-2,
+                    vy:2,
+
+                    r:4
+
+                });
+
+                enemyBullets.push({
+
+                    x:b.x,
+                    y:b.y,
+
+                    vx:2,
+                    vy:2,
+
+                    r:4
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 4 - Desired Orbit
+//==========================
+else if(cycle<480){
+
+    if(frame%25===0){
+
+        for(let i=0;i<18;i++){
+
+            let a=i*Math.PI*2/18;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                angle:a,
+                orbit:90,
+
+                vx:0,
+                vy:0,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+}
+//==========================
+// Pattern 5 - Stolen Wish
+//==========================
+else if(cycle<600){
+let speed = -4;
+let curveSpeed = -0.05;
+    if(frame%18===0){
+
+        let base=Math.atan2(
+            player.y-boss.y,
+            player.x-boss.x
+        );
+
+        for(let i=-3;i<=3;i++){
+
+            let a=base+i*0.18;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*speed,
+                vy:Math.sin(a)*speed,
+
+                curve:(i<0?-1:1)*curveSpeed,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    for(let b of enemyBullets){
+
+        if(b.curve){
+
+            let ang=Math.atan2(b.vy,b.vx);
+
+            let sp=Math.hypot(b.vx,b.vy);
+
+            let na=ang+b.curve;
+
+            b.vx=Math.cos(na)*sp;
+            b.vy=Math.sin(na)*sp;
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 6 - Impossible Desire
+//==========================
+else if(cycle<720){
+
+    if(frame%50===0){
+
+        let gap=Math.floor(Math.random()*8);
+
+        for(let i=0;i<8;i++){
+
+            if(i===gap) continue;
+
+            for(let j=0;j<10;j++){
+
+                enemyBullets.push({
+
+                    x:25+i*50,
+                    y:-j*32,
+
+                    vx:0,
+                    vy:3.4,
+
+                    stop:70,
+
+                    r:6
+
+                });
+
+            }
+
+        }
+
+    }
+
+    for(let b of enemyBullets){
+
+        if(b.stop){
+
+            b.stop--;
+
+            if(b.stop>0){
+
+                b.vx*=0.96;
+                b.vy*=0.96;
+
+            }else if(b.stop===0){
+
+                let ang=Math.atan2(
+                    player.y-b.y,
+                    player.x-b.x
+                );
+
+                b.vx=Math.cos(ang)*5;
+                b.vy=Math.sin(ang)*5;
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 7 - Twisted Fate
+//==========================
+else if(cycle<840){
+
+    if(frame%30===0){
+
+        for(let i=0;i<20;i++){
+
+            let a=i*Math.PI*2/20;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2.5,
+                vy:Math.sin(a)*2.5,
+
+                swap:80,
+
+                r:5
+
+            });
+
+        }
+
+    }
+
+    for(let b of enemyBullets){
+
+        if(b.swap){
+
+            b.swap--;
+
+            if(b.swap===0){
+
+                let t=b.vx;
+                b.vx=b.vy;
+                b.vy=-t;
+
+            }
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 8 - Miracle Overflow
+//==========================
+else if(cycle<960){
+
+    if(frame%40===0){
+
+        for(let i=0;i<14;i++){
+
+            let a=i*Math.PI*2/14;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*1.5,
+                vy:Math.sin(a)*1.5,
+
+                grow:90,
+
+                r:3
+
+            });
+
+        }
+
+    }
+
+    for(let b of enemyBullets){
+
+        if(b.grow){
+
+            b.grow--;
+
+            b.r=Math.min(12,b.r+0.08);
+
+            let sp=Math.hypot(b.vx,b.vy)+0.015;
+            let ang=Math.atan2(b.vy,b.vx);
+
+            b.vx=Math.cos(ang)*sp;
+            b.vy=Math.sin(ang)*sp;
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 9 - World's Wish
+//==========================
+else if(cycle<1080){
+
+    if(frame%25===0){
+
+        for(let i=0;i<6;i++){
+
+            let x=40+i*64;
+
+            enemyBullets.push({
+                x:x,
+                y:-20,
+                vx:0,
+                vy:3.5,
+                r:5
+            });
+
+            enemyBullets.push({
+                x:x,
+                y:canvas.height+20,
+                vx:0,
+                vy:-3.5,
+                r:5
+            });
+
+        }
+
+    }
+
+}
+
+//==========================
+// Pattern 10 - Last Wish
+//==========================
+else{
+
+    // Vòng xoáy điều ước
+    if(frame%50===0){
+
+        let spin=frame*0.08;
+
+        for(let i=0;i<28;i++){
+
+            let a=spin+i*Math.PI*2/28;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:Math.cos(a)*2,
+                vy:Math.sin(a)*2,
+
+                spiral:1,
+
+                r:4
+
+            });
+
+        }
+
+    }
+
+    // Cầu nguyện từ bốn góc
+    if(frame%60===0){
+
+        const pts=[
+            [0,0],
+            [canvas.width,0],
+            [0,canvas.height],
+            [canvas.width,canvas.height]
+        ];
+
+        for(const p of pts){
+
+            let ang=Math.atan2(
+                player.y-p[1],
+                player.x-p[0]
+            );
+
+            for(let i=-1;i<=1;i++){
+
+                let a=ang+i*0.12;
+
+                enemyBullets.push({
+
+                    x:p[0],
+                    y:p[1],
+
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+    // Xoáy dần vào trong
+    for(let b of enemyBullets){
+
+        if(b.spiral){
+
+            let ang=Math.atan2(b.vy,b.vx)+0.03;
+            let sp=Math.hypot(b.vx,b.vy)+0.01;
+
+            b.vx=Math.cos(ang)*sp;
+            b.vy=Math.sin(ang)*sp;
+
+        }
+
+    }
+
+}
+
+}
+
+else if(stage===15){
+
+    let cycle=frame%540;
+
+    // ==========================
+    // PATTERN 1 - STAR
+    // ==========================
+    if(cycle<180){
+
+        if(frame%12===0){
+
+            let base=Math.atan2(
+                player.y-boss.y,
+                player.x-boss.x
+            );
+
+            for(let i=-1;i<=1;i++){
+
+                let a=base+i*0.15;
+
+                enemyBullets.push({
+                    x:boss.x,
+                    y:boss.y,
+                    vx:Math.cos(a)*3,
+                    vy:Math.sin(a)*3,
+                    r:5,
+                    reflect:1
+                });
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // PATTERN 2 - STAR RAIN
+    // ==========================
+    else if(cycle<360){
+
+        if(frame%25===0){
+
+            let spin=frame*0.04;
+
+            for(let i=0;i<5;i++){
+
+                let a1=spin+i*Math.PI*2/5;
+                let a2=spin+((i+2)%5)*Math.PI*2/5;
+
+                for(let t=0;t<=1;t+=0.08){
+
+                    enemyBullets.push({
+
+                        x:boss.x+
+                            (Math.cos(a1)*(1-t)+Math.cos(a2)*t)*70,
+
+                        y:boss.y+
+                            (Math.sin(a1)*(1-t)+Math.sin(a2)*t)*70,
+
+                        vx:0,
+                        vy:2.8,
+
+                        r:5
+
+                    });
+
+                }
+
+            }
+
+        }
+
+    }
+
+    // ==========================
+    // PATTERN 3 - STAR + FALLING
+    // ==========================
+    else{
+
+        // Mưa đạn ít hơn Stage 13
+        if(frame%25===0){
+
+            let gap=Math.floor(Math.random()*10);
+
+            for(let i=0;i<10;i++){
+
+                if(i===gap) continue;
+
+                enemyBullets.push({
+
+                    x:20+i*40,
+                    y:-20,
+
+                    vx:0,
+                    vy:5,
+
+                    r:5
+
+                });
+
+            }
+
+        }
+
+    }
+
+}
+
+// =====================================================
+// VELSIRA - CHAPTER 3 STAGE 2
+// =====================================================
+
+else if(stage===16){
+
+    let cycle=frame%540;
+
+    // =================================================
+    // PATTERN 1 - ĐẠN KẾT HỢP THÀNH HÌNH NGÔI SAO
+    // + VÒNG TRÒN BAO QUANH
+    // =================================================
+
+    if(cycle<180){
+
+        if(frame%35===0){
+
+            let cx=boss.x;
+            let cy=boss.y;
+
+            // 5 đường tạo thành ngôi sao
+            for(let arm=0;arm<5;arm++){
+
+                let baseAngle=
+                    -Math.PI/2+
+                    arm*Math.PI*2/5;
+
+                for(let j=0;j<6;j++){
+
+                    let radius=12+j*11;
+
+                    enemyBullets.push({
+
+                        x:cx+Math.cos(baseAngle)*radius,
+                        y:cy+Math.sin(baseAngle)*radius,
+
+                        vx:Math.cos(baseAngle)*1.2,
+                        vy:Math.sin(baseAngle)*1.2,
+
+                        r:7
+                    });
+
+                }
+            }
+
+            // Các đường chéo nối thành ngôi sao
+            for(let i=0;i<5;i++){
+
+                let a=
+                    -Math.PI/2+
+                    i*Math.PI*2/5;
+
+                for(let j=0;j<5;j++){
+
+                    let radius=20+j*9;
+
+                    let angle=
+                        a+
+                        Math.PI*2/5*2;
+
+                    enemyBullets.push({
+
+                        x:cx+Math.cos(angle)*radius,
+                        y:cy+Math.sin(angle)*radius,
+
+                        vx:Math.cos(angle)*1.2,
+                        vy:Math.sin(angle)*1.2,
+
+                        r:7
+                    });
+                }
+            }
+
+            // Vòng tròn bao quanh
+            for(let i=0;i<24;i++){
+
+                let a=i*Math.PI*2/24;
+
+                enemyBullets.push({
+
+                    x:cx+Math.cos(a)*105,
+                    y:cy+Math.sin(a)*105,
+
+                    vx:Math.cos(a)*0.7,
+                    vy:Math.sin(a)*0.7,
+
+                    r:6
+                });
+            }
+        }
+
+    }
+
+
+    // =================================================
+    // PATTERN 2 - RẢI ĐẠN
+    // =================================================
+
+    else if(cycle<360){
+
+        if(frame%7===0){
+
+            let side=Math.random()<0.5;
+
+            let sx=
+                side
+                ? -10
+                : canvas.width+10;
+
+            let sy=Math.random()*300;
+
+            let dx=player.x-sx;
+            let dy=player.y-sy;
+
+            let len=Math.hypot(dx,dy)||1;
+
+            let speed=3.2;
+
+            enemyBullets.push({
+
+                x:sx,
+                y:sy,
+
+                vx:dx/len*speed,
+                vy:dy/len*speed,
+
+                r:8
+            });
+        }
+
+        if(frame%18===0){
+
+            let sx=Math.random()*canvas.width;
+            let sy=-10;
+
+            let dx=player.x-sx;
+            let dy=player.y-sy;
+
+            let len=Math.hypot(dx,dy)||1;
+
+            enemyBullets.push({
+
+                x:sx,
+                y:sy,
+
+                vx:dx/len*2.7,
+                vy:dy/len*2.7,
+
+                r:8
+            });
+        }
+
+    }
+
+
+    // =================================================
+    // PATTERN 3 - VELSIRA HÓA THÀNH DƠI
+    // =================================================
+
+    else{
+
+        // Boss di chuyển chỉ ở pattern 3
+        let targetX=
+            canvas.width/2+
+            Math.sin(frame*0.018)*120;
+
+        let targetY=
+            100+
+            Math.sin(frame*0.011)*25;
+
+        boss.x+=(targetX-boss.x)*0.03;
+        boss.y+=(targetY-boss.y)*0.03;
+
+
+        // Tạo đạn từ vị trí của Velsira
+        if(frame%18===0){
+
+            let dx=player.x-boss.x;
+            let dy=player.y-boss.y;
+
+            let len=Math.hypot(dx,dy)||1;
+
+            let speed=3.2;
+
+            enemyBullets.push({
+
+                x:boss.x,
+                y:boss.y,
+
+                vx:dx/len*speed,
+                vy:dy/len*speed,
+
+                r:7
+            });
+        }
+
+    }
+
+}
+
+// =====================================================
+// LUNEMI - CHAPTER 3 STAGE 3
+// =====================================================
+
+else if(stage===17){
+
+    let cycle=frame%900;
+    boss.invulnerable=false;
+    // =================================================
+    // PATTERN 1 - ĐẠN UỐN LƯỢN
+    // =================================================
+
+    if(cycle<300){
+    boss.invulnerable=false;
+        if(frame%20===0){
+
+            let x=Math.random()*canvas.width;
+            let y=-10;
+
+            let targetX=player.x;
+            let targetY=player.y;
+
+            let dx=targetX-x;
+            let dy=targetY-y;
+
+            let len=Math.hypot(dx,dy)||1;
+
+            enemyBullets.push({
+
+                x:x,
+                y:y,
+
+                vx:dx/len*2.5,
+                vy:dy/len*2.5,
+
+                r:7,
+
+                wave:Math.random()*Math.PI*2,
+                waveSpeed:0.13,
+                wavePower:2.2
+            });
+        }
+
+        for(let b of enemyBullets){
+
+            if(b.wave!==undefined){
+
+                b.wave+=b.waveSpeed;
+
+                let speed=
+                    Math.hypot(b.vx,b.vy)||1;
+
+                let nx=-b.vy/speed;
+                let ny=b.vx/speed;
+
+                b.x+=
+                    b.vx+
+                    nx*Math.sin(b.wave)*b.wavePower;
+
+                b.y+=
+                    b.vy+
+                    ny*Math.sin(b.wave)*b.wavePower;
+            }
+        }
+
+    }
+
+
+    // =================================================
+    // PATTERN 2 - XOÁY ĐẢO CHIỀU
+    // =================================================
+
+    else if(cycle<600){
+    boss.invulnerable=false;
+        const total=20;
+
+        if(typeof boss.spinDir==="undefined"){
+
+            boss.spinDir=
+                Math.random()<0.5
+                ?1
+                :-1;
+
+            boss.spinAngle=0;
+
+            boss.nextFlip=frame+6;
+
+            boss.startCycle=cycle;
+        }
+
+        if(frame>=boss.nextFlip){
+
+            if(Math.random()<0.1){
+
+                boss.spinDir*=-1;
+
+            }
+
+            boss.nextFlip=frame+6;
+        }
+
+        let progress=
+            (cycle-boss.startCycle)/
+            (800-boss.startCycle);
+
+        let currentMaxSpeed=
+            Math.max(
+                0,
+                (1-progress)*0.35
+            );
+
+        boss.spinAngle+=
+            currentMaxSpeed*
+            boss.spinDir;
+
+
+        if(frame%10===0){
+
+            for(let i=0;i<total;i++){
+
+                let a=
+                    boss.spinAngle+
+                    i*Math.PI*2/total;
+
+                enemyBullets.push({
+
+                    x:boss.x,
+                    y:boss.y,
+
+                    vx:Math.cos(a)*2,
+                    vy:Math.sin(a)*2,
+
+                    r:6
+                });
+            }
+        }
+
+    }
+
+
+    // =================================================
+    // PATTERN 3 - BẤT TỬ
+    // =================================================
+
+    else{
+    boss.invulnerable=true;
+        if(frame%50===0){
+
+            let cx=boss.x;
+            let cy=boss.y;
+
+            for(let i=0;i<6;i++){
+
+                let a=
+                    i*Math.PI*2/6;
+
+                enemyBullets.push({
+
+                    x:cx,
+                    y:cy,
+
+                    vx:Math.cos(a)*2.8,
+                    vy:Math.sin(a)*2.8,
+
+                    r:7
+
+                });
+            }
+        }
+
+    }
+
+}
+
+}
+
+    // Update enemy
+    for(let i=enemies.length-1;i>=0;i--){
+
+        let e=enemies[i];
+
+if(skillTimer===0){
+
+e.y+=e.speed;
+
+if(stage>=3){
+    e.x+=e.vx||0;
+}
+
+}
+
+if(stage===7 || stage===14){
+if(frame%200===0 && skillTimer===0){
+
+    let dx=player.x-e.x;
+    let dy=player.y-e.y;
+    let d=Math.hypot(dx,dy);
+
+    enemyBullets.push({
+
+        x:e.x,
+        y:e.y,
+
+        vx:dx/d*5,
+        vy:dy/d*5,
+
+        r:4
+
+    });
+
+}
+}
+        // Trúng đạn
+        for(let j=bullets.length-1;j>=0;j--){
+
+            let b=bullets[j];
+
+            if(
+                Math.abs(b.x-e.x)<e.w/2 &&
+                Math.abs(b.y-e.y)<e.h/2
+            ){
+
+                e.hp-=player.damage;
+                bullets.splice(j,1);
+
+                if(e.hp<=0){
+                    score+=100;
+                    enemies.splice(i,1);
+                }
+
+                break;
+            }
+
+        }
+
+        if(i>=enemies.length) continue;
+
+        // Chạm player
+        if(
+            Math.abs(player.x-e.x)<12 &&
+            Math.abs(player.y-e.y)<12
+        ){
+
+if(skillTimer===0){
+    player.hp--;
+}
+
+            enemies.splice(i,1);
+            continue;
+
+        }
+
+        // Ra khỏi màn hình
+        if(e.y>canvas.height+20){
+
+            enemies.splice(i,1);
+
+        }
+
+    }
+
+    // Enemy bullets
+    for(let i=enemyBullets.length-1;i>=0;i--){
+
+        let b=enemyBullets[i];
+
+if(b.ax) b.vx+=b.ax;
+if(b.ay) b.vy+=b.ay;
+
+        b.x+=b.vx;
+        b.y+=b.vy;
+if(b.reflect){
+
+    if((b.x<b.r && b.vx<0) || (b.x>canvas.width-b.r && b.vx>0)){
+        b.vx=-b.vx;
+        b.reflect--;
+    }
+
+    if((b.y<b.r && b.vy<0) || (b.y>canvas.height-b.r && b.vy>0)){
+        b.vy=-b.vy;
+        b.reflect--;
+    }
+
+}
+if(b.reflectD){
+
+    // Chỉ phản khi chạm mép dưới
+    if(b.y > canvas.height - b.r && b.vy > 0){
+        b.vy = -b.vy;
+        b.reflectD--;
+    }
+
+}
+        if(b.orbit){
+
+            b.angle+=0.07;
+            b.orbit--;
+
+            b.x=boss.x+Math.cos(b.angle)*70;
+            b.y=boss.y+Math.sin(b.angle)*70;
+
+            if(b.orbit===0){
+
+                let ang=Math.atan2(
+                    player.y-b.y,
+                    player.x-b.x
+                );
+
+                b.vx=Math.cos(ang)*4;
+                b.vy=Math.sin(ang)*4;
+
+            }
+
+        }
+if(
+    Math.hypot(player.x-b.x,player.y-b.y)<b.r+4
+){
+
+    if(skillTimer===0){
+        player.hp--;
+    }
+
+    enemyBullets.splice(i,1);
+    continue;
+
+}
+
+        if(
+            b.x<-200||
+            b.x>canvas.width+200||
+            b.y<-200||
+            b.y>canvas.height+200
+        ){
+            enemyBullets.splice(i,1);
+        }
+
+    }
+
+    // Effects
+    for(let i=effects.length-1;i>=0;i--){
+
+        if(effects[i].update)
+            effects[i].update();
+
+        if(effects[i].dead)
+            effects.splice(i,1);
+
+    }
+
+    // Items
+    for(let i=items.length-1;i>=0;i--){
+
+        items[i].y+=items[i].vy||1;
+
+        if(items[i].y>canvas.height+20)
+            items.splice(i,1);
+
+    }
+document.getElementById("hud").innerHTML=
+`${playableName}<br>
+HP: ${player.hp}<br>
+LIVES: ${lives}<br>
+SKILL CD: ${Math.ceil(skillCooldown/60)}s<br>
+SCORE: ${score}<br>
+CHAPTER ${chapter}`;
+if(player.hp<=0){
+
+    if(lives>0){
+
+        lives--;
+
+        player.hp=5;
+        player.x=200;
+        player.y=520;
+
+        enemyBullets.length=0;
+        enemies.length=0;
+
+    }else{
+
+        gameOver=true;
+        alert("GAME OVER");
+
+        return;
+    }
+
+}
+
+}
+
+function draw(){
+
+    ctx.fillStyle="#000";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+if(boss){
+    let img=imgJinrou;
+
+    if(stage===2 || stage===9){
+        img=imgMisora;
+    }else if(stage===3){
+        img=imgElis;
+    }else if(stage===4 || stage===11){
+        img=imgSeraphel;
+    }else if(stage===5){
+        img=imgSerial;
+    }else if(stage===6){
+        img=imgRaizen;
+    }else if(stage===7){
+        img=imgYuchia;
+    }else if(stage===8){
+        img=imgRinnie;
+    }else if(stage===10){
+        img=imgLysette;
+    }else if(stage===12){
+        img=imgMerivelle;
+    }else if(stage===13 || stage===15){
+        img=imgMilipsar;
+    }else if(stage===14){
+        img=imgYumei;
+    }else if(stage===16){
+        img=imgVelsira;
+}else if(stage===17){
+    img=imgLunemi;
+}
+
+    // =========================================
+    // VELSIRA HÓA DƠI Ở PATTERN 3
+    // =========================================
+
+    let cycle=frame%540;
+
+    if(stage===16 && cycle>=360){
+
+        ctx.save();
+
+        ctx.translate(boss.x,boss.y);
+
+        // Dơi lớn hơn bình thường
+        let s=1.25;
+
+        ctx.scale(s,s);
+
+        // Cánh trái
+        ctx.save();
+
+        ctx.scale(-1,1);
+
+        ctx.drawImage(
+            img,
+            -48,
+            -48,
+            96,
+            96
+        );
+
+        ctx.restore();
+
+        // Cánh phải
+        ctx.drawImage(
+            img,
+            -48,
+            -48,
+            96,
+            96
+        );
+
+        // Thân dơi
+        ctx.beginPath();
+
+        ctx.arc(
+            0,
+            5,
+            25,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        // Hai tai
+        ctx.beginPath();
+
+        ctx.moveTo(-18,-12);
+        ctx.lineTo(-28,-38);
+        ctx.lineTo(-5,-20);
+
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+
+        ctx.moveTo(18,-12);
+        ctx.lineTo(28,-38);
+        ctx.lineTo(5,-20);
+
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.restore();
+
+    }else{
+
+        // Velsira bình thường
+        ctx.drawImage(
+            img,
+            boss.x-48,
+            boss.y-48,
+            96,
+            96
+        );
+
+    }
+
+
+    // HP Boss
+    ctx.fillStyle="red";
+
+    ctx.fillRect(
+        40,
+        20,
+        320,
+        10
+    );
+
+    ctx.fillStyle="lime";
+
+    ctx.fillRect(
+        40,
+        20,
+        320*(boss.hp/boss.maxHp),
+        10
+    );
+
+}
+ctx.drawImage(
+    playableImg,
+    player.x-16,
+    player.y-16,
+    32,
+    32
+);
+
+ctx.fillStyle="#fff";
+
+for(const e of enemies){
+
+    ctx.fillRect(
+        e.x-e.w/2,
+        e.y-e.h/2,
+        e.w,
+        e.h
+    );
+
+}
+
+ctx.fillStyle="#00ffff";
+
+for(const b of bullets){
+
+    ctx.fillRect(
+        b.x-1,
+        b.y-6,
+        2,
+        8
+    );
+
+}
+if(skillTimer>0){
+
+    // =================================
+    // MERIVELLE - DÂY LEO
+    // =================================
+    if(playableName==="Merivelle"){
+
+        ctx.strokeStyle="green";
+        ctx.lineWidth=3;
+
+        for(const e of enemies){
+
+            for(let i=0;i<5;i++){
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    e.x,
+                    e.y
+                );
+
+ctx.lineTo(
+    e.x+
+    Math.sin(frame*0.12+i)*35,
+    e.y+50+i*8
+);
+
+                ctx.stroke();
+
+            }
+
+        }
+
+        if(boss){
+
+ctx.strokeStyle="#006400";
+            ctx.lineWidth=4;
+
+            for(let i=0;i<8;i++){
+
+                const a=
+                    frame*0.08+
+                    i*Math.PI/4;
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    boss.x,
+                    boss.y
+                );
+
+                ctx.lineTo(
+                    boss.x+Math.cos(a)*70,
+                    boss.y+Math.sin(a)*70
+                );
+
+                ctx.stroke();
+
+            }
+
+        }
+
+    }
+
+    // =================================
+    // YUCHIA - LASER
+    // =================================
+    else if(playableName==="Yuchia"){
+
+        ctx.fillStyle="rgba(0,255,255,.25)";
+        ctx.fillRect(
+            player.x-18,
+            0,
+            36,
+            player.y
+        );
+
+        ctx.fillStyle="#00ffff";
+        ctx.fillRect(
+            player.x-5,
+            0,
+            10,
+            player.y
+        );
+
+        ctx.fillStyle="white";
+        ctx.fillRect(
+            player.x-2,
+            0,
+            4,
+            player.y
+        );
+
+        if(boss){
+
+            ctx.fillStyle="rgba(0,255,255,.25)";
+            ctx.fillRect(
+                boss.x-25,
+                0,
+                50,
+                boss.y
+            );
+
+            ctx.fillStyle="#00ffff";
+            ctx.fillRect(
+                boss.x-8,
+                0,
+                16,
+                boss.y
+            );
+
+        }
+
+    }
+
+    // =================================
+    // YUMEI - I WISH...
+    // =================================
+    else if(playableName==="Yumei"){
+
+        ctx.strokeStyle="#ffffff";
+        ctx.lineWidth=2;
+
+        const r=
+            (60-skillTimer)*7;
+
+        ctx.beginPath();
+
+        ctx.arc(
+            player.x,
+            player.y,
+            r,
+            0,
+            Math.PI*2
+        );
+
+        ctx.stroke();
+
+        ctx.fillStyle="#ffffff";
+        ctx.font="18px monospace";
+        ctx.textAlign="center";
+
+        ctx.fillText(
+            "I WISH...",
+            canvas.width/2,
+            canvas.height/2
+        );
+
+    }
+
+    // =================================
+    // RENKA - SKILL CŨ
+    // =================================
+    else{
+
+        // Vòng sóng quanh player
+        ctx.strokeStyle="rgba(255,255,255,.8)";
+        ctx.lineWidth=2;
+
+        const r=
+            Math.max(0,(120-skillTimer)*5);
+
+        ctx.beginPath();
+
+        ctx.arc(
+            player.x,
+            player.y,
+            r,
+            0,
+            Math.PI*2
+        );
+
+        ctx.stroke();
+
+
+        // ==============================
+        // ENEMY - HIỆU ỨNG VÀNG
+        // ==============================
+
+        ctx.strokeStyle="gold";
+        ctx.lineWidth=2;
+
+        for(const e of enemies){
+
+            for(let i=0;i<4;i++){
+
+                const a=
+                    frame*0.15+
+                    i*Math.PI/2;
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    e.x+Math.cos(a)*12,
+                    e.y+Math.sin(a)*12
+                );
+
+                ctx.lineTo(
+                    e.x-Math.cos(a)*12,
+                    e.y-Math.sin(a)*12
+                );
+
+                ctx.stroke();
+
+            }
+
+        }
+
+
+        // ==============================
+        // BOSS - HIỆU ỨNG VÀNG
+        // ==============================
+
+        if(boss){
+
+            ctx.strokeStyle="gold";
+            ctx.lineWidth=3;
+
+            for(let i=0;i<4;i++){
+
+                const a=
+                    frame*0.15+
+                    i*Math.PI/2;
+
+                ctx.beginPath();
+
+                ctx.moveTo(
+                    boss.x+Math.cos(a)*40,
+                    boss.y+Math.sin(a)*40
+                );
+
+                ctx.lineTo(
+                    boss.x-Math.cos(a)*40,
+                    boss.y-Math.sin(a)*40
+                );
+
+                ctx.stroke();
+
+            }
+
+        }
+
+    }
+
+}
+for (const b of enemyBullets) {
+    ctx.fillStyle = b.color || "white";
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+if(bossNameTimer>0){
+
+    bossNameTimer--;
+
+    ctx.fillStyle="white";
+    ctx.font="28px monospace";
+    ctx.textAlign="center";
+    ctx.fillText(
+        bossName,
+        canvas.width/2,
+        200
+    );
+
+}
+
+}
+
+function loop(){
+
+    if(!inMenu && !gameOver){
+
+        update();
+        draw();
+
+        frame++;
+
+    }else if(inMenu){
+
+        ctx.fillStyle="#000";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    }
+
+    requestAnimationFrame(loop);
+}
+
+document.getElementById("skill").onclick=()=>{
+
+    if(skillCooldown>0) return;
+
+    if(playableName==="Merivelle"){
+
+        skillCooldown=480;
+        skillTimer=60;
+
+    }else if(playableName==="Yuchia"){
+
+        skillCooldown=480;
+        skillTimer=60;
+
+    }else if(playableName==="Yumei"){
+
+        skillCooldown=240;
+        skillTimer=60;
+
+    }else{
+
+        skillCooldown=480;
+        skillTimer=120;
+
+    }
+
+};
+
+loop();
+
+</script>
+
+</body>
+</html>
